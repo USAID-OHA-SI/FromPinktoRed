@@ -80,24 +80,6 @@ df_filter <- df_long %>%
 view(df_filter)
 
 # unique(df_filter$otherdisaggregate)
-# [2] "Cervical Cancer Screened - Rescreened, Cervical Cancer - Positive"    
-# [3] "Cervical Cancer Screened - Follow Up, Cervical Cancer - Negative"     
-# [4] "Cervical Cancer Screened - First Time, Eligible for Cryotherapy"      
-# [5] "Cervical Cancer Screened - Rescreened, Cervical Cancer - Negative"    
-# [6] "Cervical Cancer Screened - Follow Up, Cervical Cancer - Suspected"    
-# [7] "Cervical Cancer Screened - First Time, Cervical Cancer - Suspected"   
-# [8] "Cervical Cancer Screened - First Time, Cervical Cancer - Positive"    
-# [9] "Cervical Cancer Screened - Rescreened, Cervical Cancer - Suspected"   
-# [10] "Cervical Cancer Screened - First Time, Cervical Cancer - Negative"    
-# [11] "Cervical Cancer Screened - Rescreened, Eligible for Thermocoagulation"
-# [12] "Cervical Cancer Screened - Follow Up, Eligible for LEEP"              
-# [13] "Cervical Cancer Screened - Rescreened, Eligible for LEEP"             
-# [14] "Cervical Cancer Screened - Rescreened, Eligible for Cryotherapy"      
-# [15] "Cervical Cancer Screened - Follow Up, Cervical Cancer - Positive"     
-# [16] "Cervical Cancer Screened - Follow Up, Eligible for Cryotherapy"       
-# [17] "Cervical Cancer Screened - First Time, Eligible for LEEP"             
-# [18] "Cervical Cancer Screened - First Time, Eligible for Thermocoagulation"
-# [19] "Cervical Cancer Screened - Follow Up, Eligible for Thermocoagulation" 
 
 # Clean otherdisaggregate
 
@@ -141,7 +123,7 @@ print(df_filter)
 
 
 
-
+#examples
 
 df_ach_usaid <- df_ach %>% 
   group_by(fiscal_year, indicator) %>% 
