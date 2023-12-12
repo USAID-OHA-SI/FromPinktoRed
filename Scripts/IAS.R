@@ -1,9 +1,9 @@
 # PROJECT:  FromPinktoRed
 # AUTHOR:   J. Stephens | USAID
-# PURPOSE:   
+# PURPOSE:  Descriptive statistics of Cervical Cancer for IAS
 # LICENSE:  MIT
-# DATE:     2022-12-08
-# UPDATED:  
+# DATE:     2023-12-08
+# UPDATED:  202-12-11
 
 
 
@@ -22,7 +22,9 @@ library(tidyverse)
 library(gagglr)
 
 library(grabr)
-ls("package:gophr")
+
+library(glue)
+# ls("package:gophr")
 
 # library(vroom)
 
@@ -30,62 +32,203 @@ ls("package:gophr")
 
 file.path(si_path())
 
-cxca_inds <- c(
-  'TX_CURR',
-  'CXCA_SCRN',
-  'CXCA_SCRN_POS',
-  'CXCA_TX')
 
-# DATA -------------------------------------------------------------------
+# DATA ---------------------------------------------------------------------
 
 df <- si_path() %>%
-  return_latest("PSNU_IM") %>%
+  return_latest("OU_IM") %>%
   read_psd()
 
-view(df)
+# view(df)
 
- get_metadata()
- metadata$source
- metadata$type
+ # get_metadata()
+ # metadata$source
+ # metadata$type
  # metadata$curr_fy
-# metadata$curr_pd
+ # metadata$curr_pd
 
-# MUNGE -------------------------------------------------------------------
 
-#minimises data source to years and indicators for CXCA
-df <- df %>% 
-  filter(indicator == cxca_inds)
+# CLEAN DISAGS -----------------------------------------------------------------
 
-#########################   QC    #####################################
+df_filter <- df %>% 
+  #filtering TX_CURR & CXCA to the specific age / sex disags 
+   filter(
+    (indicator == "TX_CURR" & 
+       standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus")) | 
+      
+    (str_detect(indicator, "CXCA") & 
+        str_detect(standardizeddisaggregate, "Age/Sex/HIVStatus")),
+    sex=="Female", 
+    ageasentered %in% c("35-39","50-54", "45-49","20-24", "25-34", "15-24", "30-34", "40-44", 
+             "25-29", "15-19", "50+", "35-49", "15+", "65+")
+    )  %>% 
+  #filtering necessary variables for ou / global analysis
+  select(operatingunit, country, funding_agency, indicator, standardizeddisaggregate,
+         otherdisaggregate, ageasentered, fiscal_year:cumulative)
+
+names(df_filter)
+
+
+# Clean otherdisaggregate
+
+df_other <- df_filter %>%
+  mutate(otherdisaggregate = sub("^Cervical Cancer Screened - ", 
+                                 "", otherdisaggregate)) %>%
+  separate(otherdisaggregate, into = c("scrn_type", 
+                                       "otherdisaggregate"), sep = ", ") %>% 
+  mutate(otherdisaggregate = sub("Cervical Cancer - |Eligible for ", 
+                                 "", otherdisaggregate)) 
+# %>% 
+#   mutate(standardizeddisaggregate = str_replace(standardizeddisaggregate, 
+#                                            ".*ScreenResult.*", "ScreenResult"), 
+#          standardizeddisaggregate = str_replace(standardizeddisaggregate, 
+#                                                 ".*TreatmentType.*", "TreatmentType")) 
+    
+# unique(df_other$standardizeddisaggregate)
+# unique(df_other$otherdisaggregate)
+# 
+# unique(df_other$scrn_type)
+# 
+# # Print or inspect the updated data frame
+# view(df_other)
+
+# Print or inspect the unique combinations
+# unique_combinations <- df_other %>%
+#   distinct(indicator, standardizeddisaggregate, otherdisaggregate, scrn_type)
+# print(unique_combinations, n=24, sort=indicator)
+
+
+#TX_CURR age/sex/hiv status age 15-49 women (currently is all above 15+)
+# unique_combinations <- df_other %>%
+#   filter(indicator=="TX_CURR") %>% 
+#   distinct(indicator, standardizeddisaggregate, ageasentered)
+# print(unique_combinations)
+# A tibble: 24 × 4
+
+# indicator     standardizeddisaggregate                        otherdisaggregate scrn_type 
+# <chr>         <chr>                                           <chr>             <chr>     
+#   1 TX_CURR       Age/Sex/HIVStatus                               NA                NA        
+# 2 TX_CURR       Age Aggregated/Sex/HIVStatus                    NA                NA        
+# 3 CXCA_SCRN     Age/Sex/HIVStatus                               NA                NA        
+# 4 CXCA_SCRN     Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Negative          Rescreened
+# 5 CXCA_SCRN     Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Negative          First Time
+# 6 CXCA_SCRN     Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Positive          Rescreened
+# 7 CXCA_SCRN     Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Positive          Follow Up 
+# 8 CXCA_SCRN_POS Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Positive          Rescreened
+# 9 CXCA_SCRN     Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Negative          Follow Up 
+# 10 CXCA_SCRN     Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Positive          First Time
+# 11 CXCA_SCRN_POS Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Positive          First Time
+# 12 CXCA_SCRN     Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Suspected         First Time
+# 13 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType Cryotherapy       First Time
+# 14 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType LEEP              Rescreened
+# 15 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType Cryotherapy       Rescreened
+# 16 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType LEEP              First Time
+# 17 CXCA_SCRN_POS Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Positive          Follow Up 
+# 18 CXCA_SCRN     Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Suspected         Rescreened
+# 19 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType Thermocoagulation First Time
+# 20 CXCA_SCRN     Age/Sex/HIVStatus/ScreenResult/ScreenVisitType  Suspected         Follow Up 
+# 21 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType Thermocoagulation Follow Up 
+# 22 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType Cryotherapy       Follow Up 
+# 23 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType Thermocoagulation Rescreened
+# 24 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType LEEP              Follow Up 
+# FORMAT VARIABLES ---------------------------------------------------------
+
+
+str(df_other)
+
+# change fiscal year ?
+# df_vars<-df_other %>% 
+#   fiscal_year
+
+
+
+# CALCULATED VARIABLES ---------------------------------------------------------
+
+# • Cervical Cancer Screening of ART Treatment
+# % CXCA_SCRN Cumulative / TX_CURR Cumulative
+
+collapse_scrn_txcurr_tbl  <- function(df_other, ...) {
+  
+  scrn_txcurr_indics <- c("CXCA_SCRN", "TX_CURR")
+  
+  scrn_txcurr_df <-  df_other %>% 
+    dplyr::filter(indicator %in% scrn_txcurr_indics,
+                  standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType",
+                                                   "Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus"),
+                  funding_agency != "Dedup") %>% 
+    dplyr::group_by(across()) %>% 
+    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::ungroup() 
+  
+  return(scrn_txcurr_df)
+}
+
+
+# • Cervical Cancer Screening Achievement
+# % CXCA_SCRN Cumulative / Targets
+
+collapse_scrn_ach_tbl  <- function(df_other, ...) {
+  
+scrn_ach_indics <- c("CXCA_SCRN")
+
+scrn_ach_df <-  df_other %>% 
+  dplyr::filter(indicator %in% scrn_ach_indics,
+                standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType", "Age/Sex/HIVStatus") |
+                  otherdisaggregate %in% c("Negative", "Positive", "Suspected"),
+                funding_agency != "Dedup") %>% 
+  dplyr::group_by(across()) %>% 
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
+  dplyr::ungroup() 
+
+return(scrn_ach_df)
+}
+
+# • Cervical Cancer % Positive
+# % CXCA_SCRN_POS results / CXCA_SCRN results
+
+collapse_scrn_pos_tbl  <- function(df_other, ...) {
+  
+  scrn_pos_indics <- c("CXCA_SCRN", "CXCA_SCRN_POS")
  
- 
- df_viz <- df %>%
-   filter(operatingunit == cntry,
-          fiscal_year == metadata$curr_fy,
-          indicator == "TX_CURR",
-          standardizeddisaggregate == "Total Numerator")
+  scrn_pos_df <-  df_other %>% 
+    dplyr::filter(indicator %in% scrn_pos_indics,
+                  standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType") ,
+                  funding_agency != "Dedup") %>% 
+    dplyr::group_by(across()) %>% 
+    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::ungroup() 
+  
+  # view(scrn_pos_df)
+  
+  return(scrn_pos_df)
+}
 
- df_viz2 <- df_viz %>%
-   group_by(fiscal_year, indicator, mech_code) %>%
-   summarise(across(c(targets, starts_with("qtr")), sum, na.rm = TRUE),
-             .groups = "drop")
- 
- view(df_viz2)
- 
- df_test <- df %>% 
-     filter(indicator == "CXCA_SCRN") %>% 
-  filter(operatingunit=="Zimbabwe", fiscal_year=="2023") %>% 
-   filter(funding_agency!="Dudup")
- 
-df_view <- df_test %>%
-  group_by(fiscal_year, indicator, operatingunit, numeratordenom, standardizeddisaggregate, mech_code) %>%
-  summarise(across(c(targets,cumulative, starts_with("qtr")), sum, na.rm = TRUE),
-            .groups = "drop") 
+# • Cervical Cancer % Positive on Treatment
+# % CXCA_TX results / CXCA_SCRN_POS results
 
-view(df_view)
+collapse_pos_tx_tbl  <- function(df_other, ...) {
+    
+  pos_tx_indics <- c("CXCA_TX", "CXCA_SCRN_POS")
+  
+  pos_tx_df <-  df_other %>% 
+    dplyr::filter(indicator %in% pos_tx_indics,
+                  standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType",
+                                                   "Age/Sex/HIVStatus/TreatmentType/ScreenVisitType") |
+                    otherdisaggregate %in% c( "Positive","Thermocoagulation", "Cryotherapy", "LEEP"),
+                  funding_agency != "Dedup") %>% 
+    dplyr::group_by(across()) %>% 
+    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::ungroup() 
+  
+  # view(pos_tx_df)
+  
+  return(pos_tx_df)
+}
+  
+  
+# RESHAPE  --------------------------------------------------------------------------
 
 
-#reshape
 
 # df_semi<- df %>% 
 #   reshape_msd(direction="semi_wide")
@@ -95,122 +238,69 @@ view(df_view)
 df_long<- df %>% 
   reshape_msd()
 
-view(df_long)
+
+zim<-df_long %>% 
+  filter(operatingunit==cntry)
+
+# view(zim)
 
 
-#filtering CXCA to the specific age / sex disags 
-#filtering necessary variables for ou / global analysis
-df_filter <- df_long %>% 
-  filter(
-    (indicator == "TX_CURR" & 
-       standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus")) | 
-      (str_detect(indicator, "CXCA") & 
-         str_detect(standardizeddisaggregate, "Age/Sex/HIVStatus/")),
-      sex=="Female", 
-      ageasentered %in% c("35-39","50-54", "45-49","20-24", "25-34", "15-24", "30-34", "40-44", 
-             "25-29", "15-19", "50+", "35-49", "15+", "65+")
-      ) %>% 
-  select(operatingunit, country, funding_agency, indicator, numeratordenom, standardizeddisaggregate,
-         otherdisaggregate, ageasentered, period, period_type, value)
 
-view(df_filter)
+# VIZ --------------------------------------------------------------------------
 
-# unique(df_filter$otherdisaggregate)
-
-# Clean otherdisaggregate
-
-# df_other <- df_filter %>%
-#   mutate(otherdisaggregate = sub("^Cervical Cancer Screened - ", "", otherdisaggregate))
-
-df_other <- df_filter %>%
-  mutate(otherdisaggregate = sub("^Cervical Cancer Screened - ", 
-                                 "", otherdisaggregate)) %>%
-  separate(otherdisaggregate, into = c("scrn_type", 
-                                       "otherdisaggregate"), sep = ", ") %>% 
-  mutate(otherdisaggregate = sub("Cervical Cancer - |Eligible for ", 
-                                 "", otherdisaggregate)) %>% 
-  mutate(standardizeddisaggregate = str_replace(standardizeddisaggregate, 
-                                           ".*ScreenResult.*", "ScreenResult"), 
-         standardizeddisaggregate = str_replace(standardizeddisaggregate, 
-                                                ".*TreatmentType.*", "TreatmentType")) 
-    
-
-unique(df_other$scrn_type)
-unique(df_other$otherdisaggregate)
-unique(df_other$standardizeddisaggregate)
-
-# Print or inspect the updated data frame
-view(df_other)
-
-# Print or inspect the unique combinations
-unique_combinations <- df_other %>%
-  distinct(indicator, standardizeddisaggregate, otherdisaggregate)
-print(unique_combinations)
-
-# A tibble: 9 × 3
-# indicator     standardizeddisaggregate     otherdisaggregate
-# <chr>         <chr>                        <chr>            
-#   1 TX_CURR       Age/Sex/HIVStatus            NA               
-# 2 TX_CURR       Age Aggregated/Sex/HIVStatus NA               
-# 3 CXCA_SCRN     ScreenResult                 Negative         
-# 4 CXCA_SCRN     ScreenResult                 Positive         
-# 5 CXCA_SCRN_POS ScreenResult                 Positive         
-# 6 CXCA_TX       TreatmentType                Cryotherapy      
-# 7 CXCA_TX       TreatmentType                LEEP             
-# 8 CXCA_SCRN     ScreenResult                 Suspected        
-# 9 CXCA_TX       TreatmentType                Thermocoagulation
-
-#TX_CURR age/sex/hiv status age 15-49 women (currently is all above 15+)
-unique_combinations <- df_other %>%
-  filter(indicator=="TX_CURR") %>% 
-  distinct(indicator, standardizeddisaggregate, ageasentered)
-print(unique_combinations)
-
-# A tibble: 14 × 3
-# indicator standardizeddisaggregate     ageasentered
-# <chr>     <chr>                        <chr>       
-#   1 TX_CURR   Age/Sex/HIVStatus            35-39       
-# 2 TX_CURR   Age/Sex/HIVStatus            50-54       
-# 3 TX_CURR   Age/Sex/HIVStatus            45-49       
-# 4 TX_CURR   Age/Sex/HIVStatus            20-24       
-# 5 TX_CURR   Age/Sex/HIVStatus            25-34       
-# 6 TX_CURR   Age/Sex/HIVStatus            15-24       
-# 7 TX_CURR   Age/Sex/HIVStatus            30-34       
-# 8 TX_CURR   Age/Sex/HIVStatus            40-44       
-# 9 TX_CURR   Age/Sex/HIVStatus            25-29       
-# 10 TX_CURR   Age/Sex/HIVStatus            15-19       
-# 11 TX_CURR   Age/Sex/HIVStatus            50+         
-#   12 TX_CURR   Age/Sex/HIVStatus            65+         
-#   13 TX_CURR   Age/Sex/HIVStatus            35-49       
-# 14 TX_CURR   Age Aggregated/Sex/HIVStatus 15+   
+#leaves out age and fiscal year, for trends by age group
+scrn_ach_viz <- scrn_ach_df %>%
+  group_by(across(operatingunit:otherdisaggregate) ) %>%
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
+  dplyr::mutate(scrn_ach=cumulative/targets)
+  
+view(scrn_ach_viz)
 
 
 
 
 
-# VIZ -------------------------------------------------------------------
-
-df_viz <- df_long %>%
-   filter(indicator == "CXCA_SCRN") %>% 
-  filter(operatingunit=="Botswana", period=="FY23")
 
 
-df_viz <- df_viz %>%
-  group_by(period, period_type, indicator ) %>%
-  summarise(value = sum(value, na.rm = FALSE),
-            .groups = "drop")
 
-view(df_viz)
-# 
+
+
+
+
+
+
+
+
+
+
 # df_viz <- reshape_msd(df_viz, "quarters")
 
 df_viz %>%
-  ggplot(aes(period, results_cumulative)) +
-  geom_col() +
+  filter(period_type=="results") %>% 
+  ggplot(aes(period, value)) +
+  geom_col()+
+  facet_wrap(vars(indicator) )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
++
   geom_text(data = . %>% filter(., period == metadata$curr_pd),
-            aes(label = results_cumulative),
+            aes(label = results),
             vjust = -.5) +
-  facet_wrap(~fct_reorder2(mech_code, period, targets)) +
   labs(title = glue("Upward trend in TX_NEW results thru {metadata$curr_qtr} quarters") %>% toupper,
        subtitle = glue("{cntry} | {metadata$curr_fy_lab} cumulative mechanism results"),
        x = NULL, y = NULL,
