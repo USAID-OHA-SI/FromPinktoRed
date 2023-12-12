@@ -60,7 +60,7 @@ df_filter <- df %>%
         str_detect(standardizeddisaggregate, "Age/Sex/HIVStatus")),
     sex=="Female", 
     ageasentered %in% c("35-39","50-54", "45-49","20-24", "25-34", "15-24", "30-34", "40-44", 
-             "25-29", "15-19", "50+", "35-49", "15+", "65+")
+             "25-29", "15-19", "50+", "35-49", "15+", "65+", "50-54", "55-59")
     )  %>% 
   #filtering necessary variables for ou / global analysis
   select(operatingunit, country, funding_agency, indicator, standardizeddisaggregate,
@@ -131,6 +131,8 @@ df_other <- df_filter %>%
 # 22 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType Cryotherapy       Follow Up 
 # 23 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType Thermocoagulation Rescreened
 # 24 CXCA_TX       Age/Sex/HIVStatus/TreatmentType/ScreenVisitType LEEP              Follow Up 
+
+
 # FORMAT VARIABLES ---------------------------------------------------------
 
 
@@ -140,9 +142,9 @@ str(df_other)
 # df_vars<-df_other %>% 
 #   fiscal_year
 
+#### need to aggregate 50+ of tx_curr (50-54 ad 55-59)
 
-
-# CALCULATED VARIABLES ---------------------------------------------------------
+# CALCULATED VARIABLES DATAFRAMES-----------------------------------------------
 
 # • Cervical Cancer Screening of ART Treatment
 # % CXCA_SCRN Cumulative / TX_CURR Cumulative
@@ -173,8 +175,8 @@ scrn_ach_indics <- c("CXCA_SCRN")
 
 scrn_ach_df <-  df_other %>% 
   dplyr::filter(indicator %in% scrn_ach_indics,
-                standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType", "Age/Sex/HIVStatus") |
-                  otherdisaggregate %in% c("Negative", "Positive", "Suspected"),
+                standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType", "Age/Sex/HIVStatus"),
+                  # otherdisaggregate %in% c("Negative", "Positive", "Suspected"),
                 funding_agency != "Dedup") %>% 
   dplyr::group_by(across()) %>% 
   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
@@ -247,17 +249,24 @@ zim<-df_long %>%
 
 
 # VIZ --------------------------------------------------------------------------
-
+names(scrn_ach_df)
+zim<-scrn_ach_df %>% 
+  filter(operatingunit==cntry)
+zim_unique <- zim %>%
+  select(operatingunit:otherdisaggregate) %>%
+  distinct()
+view(zim_unique)
 #leaves out age and fiscal year, for trends by age group
-scrn_ach_viz <- scrn_ach_df %>%
-  group_by(across(operatingunit:otherdisaggregate) ) %>%
+scrn_ach_viz <- zim %>%
+  group_by(operatingunit, country, indicator, standardizeddisaggregate, fiscal_year) %>%
   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
   dplyr::mutate(scrn_ach=cumulative/targets)
   
+
 view(scrn_ach_viz)
 
 
-
+#
 
 
 
