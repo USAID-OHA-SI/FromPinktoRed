@@ -51,22 +51,24 @@ df <- si_path() %>%
 # CLEAN DISAGS -----------------------------------------------------------------
 
 df_filter <- df %>% 
+  #optional country, primarily used for smaller data set QC
+  filter(operatingunit==cntry) %>% 
   #filtering TX_CURR & CXCA to the specific age / sex disags 
    filter(
     (indicator == "TX_CURR" & 
-       standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus")) | 
-      
+       standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus") &
+           ageasentered %in% c("15-19", "20-24", "25-29", "30-34","35-39", "40-44", 
+              "45-49","50+", "50-54", "55-59","60-64","65+","15+")&
+           sex=="Female") | 
     (str_detect(indicator, "CXCA") & 
-        str_detect(standardizeddisaggregate, "Age/Sex/HIVStatus")),
-    sex=="Female", 
-    ageasentered %in% c("35-39","50-54", "45-49","20-24", "25-34", "15-24", "30-34", "40-44", 
-             "25-29", "15-19", "50+", "35-49", "15+", "65+", "50-54", "55-59")
-    )  %>% 
+        str_detect(standardizeddisaggregate, "Age/Sex/HIVStatus") &
+       !(ageasentered %in% c("Unknown Age")))) %>% 
   #filtering necessary variables for ou / global analysis
   select(operatingunit, country, funding_agency, indicator, standardizeddisaggregate,
          otherdisaggregate, ageasentered, fiscal_year:cumulative)
 
-names(df_filter)
+# names(df_filter)
+# view(df_filter)
 
 
 # Clean otherdisaggregate
@@ -136,7 +138,7 @@ df_other <- df_filter %>%
 # FORMAT VARIABLES ---------------------------------------------------------
 
 
-str(df_other)
+# str(df_other)
 
 # change fiscal year ?
 # df_vars<-df_other %>% 
@@ -156,15 +158,14 @@ collapse_scrn_txcurr_tbl  <- function(df_other, ...) {
   scrn_txcurr_df <-  df_other %>% 
     dplyr::filter(indicator %in% scrn_txcurr_indics,
                   standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType",
-                                                   "Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus"),
-                  funding_agency != "Dedup") %>% 
+                                                   "Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus")) %>% 
     dplyr::group_by(across()) %>% 
     dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
     dplyr::ungroup() 
   
   return(scrn_txcurr_df)
 }
-
+view(scrn_txcurr_df)
 
 # • Cervical Cancer Screening Achievement
 # % CXCA_SCRN Cumulative / Targets
@@ -236,37 +237,84 @@ collapse_pos_tx_tbl  <- function(df_other, ...) {
 #   reshape_msd(direction="semi_wide")
 # 
 # view(df_semi)
+# 
+# df_long<- df %>% 
+#   reshape_msd()
 
-df_long<- df %>% 
-  reshape_msd()
 
-
-zim<-df_long %>% 
-  filter(operatingunit==cntry)
-
-# view(zim)
 
 
 
 # VIZ --------------------------------------------------------------------------
-names(scrn_ach_df)
-zim<-scrn_ach_df %>% 
-  filter(operatingunit==cntry)
-zim_unique <- zim %>%
+
+# summarize SCRN TX_CURR for visualizations
+names(scrn_txcurr_df)
+
+scrn_txcurr_df_unique <- scrn_txcurr_df %>%
   select(operatingunit:otherdisaggregate) %>%
   distinct()
-view(zim_unique)
+view(scrn_txcurr_df_unique)
 #leaves out age and fiscal year, for trends by age group
-scrn_ach_viz <- zim %>%
-  group_by(operatingunit, country, indicator, standardizeddisaggregate, fiscal_year) %>%
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
-  dplyr::mutate(scrn_ach=cumulative/targets)
+scrn_txcurr_viz <- scrn_txcurr_df %>%
+  group_by(operatingunit, country, indicator, fiscal_year) %>%
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
+  select( indicator:cumulative) %>% 
+  select(indicator, fiscal_year,cumulative) 
   
 
+view(scrn_txcurr_viz)
+
+scrn_txcurr_viz_wide <- scrn_txcurr_viz %>% 
+  pivot_wider(values_from = cumulative, names_from = indicator) %>% 
+  dplyr::mutate(scrn_ach_curr=CXCA_SCRN/TX_CURR) 
+
+view(scrn_txcurr_viz_wide) 
+  
+
+
+scrn_txcurr_viz_wide %>%
+  ggplot(aes(fiscal_year, scrn_ach_curr)) +
+  geom_col()
+
+# Run the regression
+# lm_model <- lm(scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_viz_wide)
+# summary(lm_model)
+# Call:
+#   lm(formula = scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_viz_wide)
+# 
+# Residuals:
+#   1          2          3 
+# 0.0007223 -0.0014445  0.0007223 
+# 
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)  
+# (Intercept) 26.879244   2.529521   10.63   0.0597 .
+# fiscal_year -0.013127   0.001251  -10.49   0.0605 .
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 0.001769 on 1 degrees of freedom
+# (1 observation deleted due to missingness)
+# Multiple R-squared:  0.991,	Adjusted R-squared:  0.982 
+# F-statistic: 110.1 on 1 and 1 DF,  p-value: 0.06049
+
++#
+
+names(scrn_ach_df)
+
+scrn_ach_df_unique <- scrn_ach_df %>%
+  select(operatingunit:otherdisaggregate) %>%
+  distinct()
+view(scrn_ach_df_unique)
+#leaves out age and fiscal year, for trends by age group
+scrn_ach_viz <- scrn_ach_df %>%
+  group_by(operatingunit, country, standardizeddisaggregate, indicator, fiscal_year) %>%
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
+  dplyr::mutate(scrn_ach=cumulative/targets) 
+  
 view(scrn_ach_viz)
 
 
-#
 
 
 
@@ -276,90 +324,4 @@ view(scrn_ach_viz)
 
 
 
-
-
-
-
-
-
-# df_viz <- reshape_msd(df_viz, "quarters")
-
-df_viz %>%
-  filter(period_type=="results") %>% 
-  ggplot(aes(period, value)) +
-  geom_col()+
-  facet_wrap(vars(indicator) )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-+
-  geom_text(data = . %>% filter(., period == metadata$curr_pd),
-            aes(label = results),
-            vjust = -.5) +
-  labs(title = glue("Upward trend in TX_NEW results thru {metadata$curr_qtr} quarters") %>% toupper,
-       subtitle = glue("{cntry} | {metadata$curr_fy_lab} cumulative mechanism results"),
-       x = NULL, y = NULL,
-       caption = glue("{metadata$caption}")) 
-
-
-#examples
-
-df_ach_usaid <- df_ach %>% 
-  group_by(fiscal_year, indicator) %>% 
-  summarise(across(c(cumulative, targets), sum, na.rm = TRUE), .groups = "drop") %>% 
-  adorn_achievement(curr_qtr)
-
-
-df_tx <- df %>% 
-  filter(funding_agency == "USAID",
-         indicator == "TX_CURR",
-         standardizeddisaggregate == "Total Numerator") %>% 
-  group_by(snu1, indicator, fiscal_year) %>% 
-  summarise(across(c(targets, starts_with("qtr")), sum, na.rm = TRUE), .groups = "drop") %>% 
-  reshape_msd("quarters") %>% 
-  select(-results_cumulative)
-
-
-
-
-
-
-
-
-
-
-
-
-# EXPORT -------------------------------------------------------------------
-
-# Set location to export file
-setwd(file.path(si_path(), "SITE_SHIFT"))
-
-#reading and combining local files (replaced map_dfr w/ vroom)
-df_full<- list.files(file.path(si_path(), "SITE_SHIFT")) %>%  
-  vroom
-
-#export
-# readr::write_csv(df_full, file.path(si_path(), "SITE_SHIFT_full_FY23Q2.csv"))
-# readr::write_csv(df_full, file.path(si_path(), "SITE_SHIFT_zim_FY23Q3.csv"))
-readr::write_csv(df_full, file.path(si_path(), paste0("SITE_SHIFT_",
-                                                      operating_unit,
-                                                      FYQ,".csv")))
-
-#delete folder
-unlink((file.path(si_path(), "SITE_SHIFT")))
 
