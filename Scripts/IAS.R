@@ -10,7 +10,8 @@
 # CUSTOMIZATIONS ----------------------------------------------------------
 
 # Define the country name variable, leave blank for ALL OUs
-cntry <- "Zimbabwe"
+cntry <- c("Zimbabwe", "Botswana", "Eswatini","Ethiopia","Haiti", "Kenya", "Lesotho",
+           "Malawi", "Mozambique", "Namibia", "Uganda", "Zambia")
 
 #Define the period
 # FYQ<- "FY23Q4"
@@ -52,7 +53,7 @@ df <- si_path() %>%
 
 df_filter <- df %>% 
   #optional country, primarily used for smaller data set QC
-  filter(operatingunit==cntry) %>% 
+  filter(operatingunit %in% cntry) %>% 
   #filtering TX_CURR & CXCA to the specific age / sex disags 
    filter(
     (indicator == "TX_CURR" & 
@@ -255,61 +256,104 @@ collapse_pos_tx_tbl  <- function(df_other, ...) {
 
 
 
-# VIZ --------------------------------------------------------------------------
+# ANALYTICS --------------------------------------------------------------------------
 
-# summarize SCRN TX_CURR for visualizations
-# names(scrn_txcurr_df)
-
-# scrn_txcurr_df_unique <- scrn_txcurr_df %>%
-#   select(operatingunit:otherdisaggregate) %>%
-#   distinct()
-# view(scrn_txcurr_df_unique)
-
-#leaves out age and fiscal year, for trends by age group
-scrn_txcurr_viz <- scrn_txcurr_df %>%
+#leaves out age and country for trends
+scrn_txcurr_df_fy <- scrn_txcurr_df %>%
   group_by(operatingunit, country, indicator, fiscal_year) %>%
   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
   select( indicator:cumulative) %>% 
-  select(indicator, fiscal_year,cumulative) 
-  
+  select(indicator, fiscal_year,cumulative) %>% 
+  filter(fiscal_year!=2024)
 
-view(scrn_txcurr_viz)
-#this is where the scrn_cxca are slightly off....
+# view(scrn_txcurr_df_fy)
 
-scrn_txcurr_viz_wide <- scrn_txcurr_viz %>% 
+#pivot wider to create calculation
+scrn_txcurr_df_fy_wide <- scrn_txcurr_df_fy %>% 
+  group_by(indicator, fiscal_year) %>% 
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
   pivot_wider(values_from = cumulative, names_from = indicator) %>% 
   dplyr::mutate(scrn_ach_curr=CXCA_SCRN/TX_CURR) 
 
-view(scrn_txcurr_viz_wide) 
-  
 
+# view(scrn_txcurr_df_fy_wide) 
 
-scrn_txcurr_viz_wide %>%
-  ggplot(aes(fiscal_year, scrn_ach_curr)) +
-  geom_col()
+# Run the regression for fiscal year
+lm_model <- lm(scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_df_fy_wide)
+summary(lm_model)
 
-# Run the regression
-lm_model <- lm(scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_viz_wide)
- summary(lm_model)
 # Call:
 #   lm(formula = scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_viz_wide)
 # 
 # Residuals:
-#   1          2          3 
-# 0.0007223 -0.0014445  0.0007223 
+#   1        2        3 
+# -0.01297  0.02594 -0.01297 
 # 
 # Coefficients:
-#   Estimate Std. Error t value Pr(>|t|)  
-# (Intercept) 26.879244   2.529521   10.63   0.0597 .
-# fiscal_year -0.013127   0.001251  -10.49   0.0605 .
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#   Estimate Std. Error t value Pr(>|t|)
+# (Intercept) -14.471689  45.418298  -0.319    0.804
+# fiscal_year   0.007303   0.022462   0.325    0.800
 # 
-# Residual standard error: 0.001769 on 1 degrees of freedom
-# (1 observation deleted due to missingness)
-# Multiple R-squared:  0.991,	Adjusted R-squared:  0.982 
-# F-statistic: 110.1 on 1 and 1 DF,  p-value: 0.06049
+# Residual standard error: 0.03177 on 1 degrees of freedom
+# Multiple R-squared:  0.09561,	Adjusted R-squared:  -0.8088 
+# F-statistic: 0.1057 on 1 and 1 DF,  p-value: 0.7999
 
+################################################################################
+################################### COUNTRY
+#leaves out age and fiscal year, for trends by age group
+scrn_txcurr_df_ou <- scrn_txcurr_df %>%
+    filter(fiscal_year!=2024) %>% 
+  group_by(operatingunit, country, indicator) %>%
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
+  select( country:cumulative) %>% 
+  select(indicator, country, cumulative)  
+
+view(scrn_txcurr_df_ou)
+
+#pivot wider to create calculation
+scrn_txcurr_df_ou_wide <- scrn_txcurr_df_ou %>% 
+  group_by(country, indicator) %>% 
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
+  pivot_wider(values_from = cumulative, names_from = indicator) %>% 
+  dplyr::mutate(scrn_ach_curr=CXCA_SCRN/TX_CURR) 
+
+
+ view(scrn_txcurr_df_ou_wide) 
+
+# Run the regression for fiscal year
+lm_model <- lm(scrn_ach_curr ~ country, data = scrn_txcurr_df_ou_wide)
+summary(lm_model)
+
+  
+# Call:
+#   lm(formula = scrn_ach_curr ~ country, data = scrn_txcurr_df_ou_wide)
+# 
+# Residuals:
+#   ALL 12 residuals are 0: no residual degrees of freedom!
+#   
+#   Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)
+# (Intercept)        0.17272        NaN     NaN      NaN
+# countryEswatini    0.08857        NaN     NaN      NaN
+# countryEthiopia    0.07565        NaN     NaN      NaN
+# countryHaiti      -0.17170        NaN     NaN      NaN
+# countryKenya       0.18210        NaN     NaN      NaN
+# countryLesotho     0.05055        NaN     NaN      NaN
+# countryMalawi      0.07239        NaN     NaN      NaN
+# countryMozambique  0.15320        NaN     NaN      NaN
+# countryNamibia    -0.01612        NaN     NaN      NaN
+# countryUganda      0.09104        NaN     NaN      NaN
+# countryZambia      0.15726        NaN     NaN      NaN
+# countryZimbabwe    0.16285        NaN     NaN      NaN
+# 
+# Residual standard error: NaN on 0 degrees of freedom
+# Multiple R-squared:      1,	Adjusted R-squared:    NaN 
+# F-statistic:   NaN on 11 and 0 DF,  p-value: NA
+
+
+
+################################################################################
+################################### AGE
 
 #### by ages
 scrn_txcurr_viz_age <- scrn_txcurr_df %>%
@@ -329,29 +373,25 @@ scrn_txcurr_viz_wide_age <- scrn_txcurr_viz_age %>%
 view(scrn_txcurr_viz_wide_age) 
 
 
+scrn_txcurr_viz_wide <- scrn_txcurr_viz %>% 
+  pivot_wider(values_from = cumulative, names_from = indicator) %>% 
+  dplyr::mutate(scrn_ach_curr=CXCA_SCRN/TX_CURR)  %>% 
+  group_by(ageasentered) %>% 
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+
+view(scrn_txcurr_viz_wide) 
+
 lm_model_age <- lm(scrn_ach_curr ~ ageasentered, data = scrn_txcurr_viz_wide_age)
 
- summary(lm_model_age)
+summary(lm_model_age)
 
 
 
-names(scrn_ach_df)
+# VIZ --------------------------------------------------------------------------
 
-scrn_ach_df_unique <- scrn_ach_df %>%
-  select(operatingunit:otherdisaggregate) %>%
-  distinct()
-view(scrn_ach_df_unique)
-#leaves out age and fiscal year, for trends by age group
-scrn_ach_viz <- scrn_ach_df %>%
-  group_by(operatingunit, country, standardizeddisaggregate, indicator, fiscal_year) %>%
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
-  dplyr::mutate(scrn_ach=cumulative/targets) 
-  
-view(scrn_ach_viz)
-
-
-
-
+# scrn_txcurr_viz_wide %>%
+#   ggplot(aes(fiscal_year, scrn_ach_curr)) +
+#   geom_col()
 
 
 
