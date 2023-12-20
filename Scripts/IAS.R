@@ -62,13 +62,16 @@ df_filter <- df %>%
            sex=="Female") | 
     (str_detect(indicator, "CXCA") & 
         str_detect(standardizeddisaggregate, "Age/Sex/HIVStatus") &
+       #consider changing above to otherdisaggregate!=null 
+       ageasentered %in% c("15-19", "20-24", "25-29", "30-34","35-39", "40-44", 
+                           "45-49","50+", "50-54", "55-59","60-64","65+","15+")&
        !(ageasentered %in% c("Unknown Age")))) %>% 
   #filtering necessary variables for ou / global analysis
   select(operatingunit, country, funding_agency, indicator, standardizeddisaggregate,
          otherdisaggregate, ageasentered, fiscal_year:cumulative)
 
 # names(df_filter)
-# view(df_filter)
+ # view(df_filter)
 
 
 # Clean otherdisaggregate
@@ -102,8 +105,8 @@ df_other <- df_filter %>%
 
 #TX_CURR age/sex/hiv status age 15-49 women (currently is all above 15+)
 # unique_combinations <- df_other %>%
-#   filter(indicator=="TX_CURR") %>% 
-#   distinct(indicator, standardizeddisaggregate, ageasentered)
+#   # filter(indicator=="TX_CURR") %>%
+#   distinct(indicator, standardizeddisaggregate, otherdisaggregate)
 # print(unique_combinations)
 # A tibble: 24 × 4
 
@@ -196,7 +199,8 @@ collapse_scrn_pos_tbl  <- function(df_other, ...) {
   scrn_pos_df <-  df_other %>% 
     dplyr::filter(indicator %in% scrn_pos_indics,
                   standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType") ,
-                  funding_agency != "Dedup") %>% 
+                  funding_agency != "Dedup") 
+  %>% 
     dplyr::group_by(across()) %>% 
     dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
     dplyr::ungroup() 
@@ -263,6 +267,7 @@ scrn_txcurr_viz <- scrn_txcurr_df %>%
   
 
 view(scrn_txcurr_viz)
+#this is where the scrn_cxca are slightly off....
 
 scrn_txcurr_viz_wide <- scrn_txcurr_viz %>% 
   pivot_wider(values_from = cumulative, names_from = indicator) %>% 
@@ -277,7 +282,7 @@ scrn_txcurr_viz_wide %>%
   geom_col()
 
 # Run the regression
-# lm_model <- lm(scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_viz_wide)
+lm_model <- lm(scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_viz_wide)
 # summary(lm_model)
 # Call:
 #   lm(formula = scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_viz_wide)
@@ -298,7 +303,30 @@ scrn_txcurr_viz_wide %>%
 # Multiple R-squared:  0.991,	Adjusted R-squared:  0.982 
 # F-statistic: 110.1 on 1 and 1 DF,  p-value: 0.06049
 
-+#
+
+#### by ages
+scrn_txcurr_viz_age <- scrn_txcurr_df %>%
+  group_by(operatingunit, country, indicator, ageasentered) %>%
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
+  select( indicator:cumulative) %>% 
+  select(indicator, ageasentered,cumulative) 
+
+
+view(scrn_txcurr_viz_age)
+#this is where the scrn_cxca are slightly off....
+
+scrn_txcurr_viz_wide_age <- scrn_txcurr_viz_age %>% 
+  pivot_wider(values_from = cumulative, names_from = indicator) %>% 
+  dplyr::mutate(scrn_ach_curr=CXCA_SCRN/TX_CURR) 
+
+view(scrn_txcurr_viz_wide_age) 
+
+
+lm_model_age <- lm(scrn_ach_curr ~ ageasentered, data = scrn_txcurr_viz_wide_age)
+
+ summary(lm_model_age)
+
+
 
 names(scrn_ach_df)
 
