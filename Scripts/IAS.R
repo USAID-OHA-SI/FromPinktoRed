@@ -148,17 +148,23 @@ df_other <- df_filter %>%
 #   fiscal_year
 
 #### need to aggregate 50+ of tx_curr (50-54 ad 55-59)
+df_clean<-df_other %>% 
+  mutate(ageasentered=case_when(
+             ageasentered %in% c("50-54", "55-59", "60-64", "65+")
+             ~ "50+",
+              TRUE~ ageasentered))
+
 
 # CALCULATED VARIABLES DATAFRAMES-----------------------------------------------
 
 # • Cervical Cancer Screening of ART Treatment
 # % CXCA_SCRN Cumulative / TX_CURR Cumulative
 
-collapse_scrn_txcurr_tbl  <- function(df_other, ...) {
+collapse_scrn_txcurr_tbl  <- function(df_clean, ...) {
   
   scrn_txcurr_indics <- c("CXCA_SCRN", "TX_CURR")
   
-  scrn_txcurr_df <-  df_other %>% 
+  scrn_txcurr_df <-  df_clean %>% 
     dplyr::filter(indicator %in% scrn_txcurr_indics,
                   standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType",
                                                    "Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus")) %>% 
@@ -252,12 +258,13 @@ collapse_pos_tx_tbl  <- function(df_other, ...) {
 # VIZ --------------------------------------------------------------------------
 
 # summarize SCRN TX_CURR for visualizations
-names(scrn_txcurr_df)
+# names(scrn_txcurr_df)
 
-scrn_txcurr_df_unique <- scrn_txcurr_df %>%
-  select(operatingunit:otherdisaggregate) %>%
-  distinct()
-view(scrn_txcurr_df_unique)
+# scrn_txcurr_df_unique <- scrn_txcurr_df %>%
+#   select(operatingunit:otherdisaggregate) %>%
+#   distinct()
+# view(scrn_txcurr_df_unique)
+
 #leaves out age and fiscal year, for trends by age group
 scrn_txcurr_viz <- scrn_txcurr_df %>%
   group_by(operatingunit, country, indicator, fiscal_year) %>%
@@ -283,7 +290,7 @@ scrn_txcurr_viz_wide %>%
 
 # Run the regression
 lm_model <- lm(scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_viz_wide)
-# summary(lm_model)
+ summary(lm_model)
 # Call:
 #   lm(formula = scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_viz_wide)
 # 
