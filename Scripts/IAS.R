@@ -38,7 +38,17 @@ file.path(si_path())
 
 df <- si_path() %>%
   return_latest("OU_IM") %>%
-  read_psd()
+  read_psd()   %>% 
+#optional country, primarily used for smaller data set QC
+filter(operatingunit %in% cntry)
+
+
+df_arch <- si_path() %>% 
+  return_latest("OU_IM_FY15") %>% 
+  read_msd()%>% 
+  #optional country, primarily used for smaller data set QC
+  filter(operatingunit %in% cntry)
+
 
 # view(df)
 
@@ -49,11 +59,15 @@ df <- si_path() %>%
  # metadata$curr_pd
 
 
-# CLEAN DISAGS -----------------------------------------------------------------
+# MUNGE -----------------------------------------------------------------
 
-df_filter <- df %>% 
-  #optional country, primarily used for smaller data set QC
-  filter(operatingunit %in% cntry) %>% 
+#bind archived + current MSD and filter for PrEP
+df_prep <- df %>%
+  bind_rows(df_arch) 
+
+#####################CLEAN DISAGS 
+
+df_filter <- df_prep %>% 
   #filtering TX_CURR & CXCA to the specific age / sex disags 
    filter(
     (indicator == "TX_CURR" & 
@@ -161,11 +175,13 @@ df_clean<-df_other %>%
 # • Cervical Cancer Screening of ART Treatment
 # % CXCA_SCRN Cumulative / TX_CURR Cumulative
 
-collapse_scrn_txcurr_tbl  <- function(df_clean, ...) {
+# collapse_scrn_txcurr_tbl  <- function(df_clean, ...) {
   
   scrn_txcurr_indics <- c("CXCA_SCRN", "TX_CURR")
   
   scrn_txcurr_df <-  df_clean %>% 
+    dplyr::filter(fiscal_year!=2024)%>% 
+    dplyr::filter(fiscal_year>=2018)%>% 
     dplyr::filter(indicator %in% scrn_txcurr_indics,
                   standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType",
                                                    "Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus")) %>% 
@@ -173,9 +189,9 @@ collapse_scrn_txcurr_tbl  <- function(df_clean, ...) {
     dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
     dplyr::ungroup() 
   
-  return(scrn_txcurr_df)
-}
-view(scrn_txcurr_df)
+#   return(scrn_txcurr_df)
+# }
+# view(scrn_txcurr_df)
 
 # • Cervical Cancer Screening Achievement
 # % CXCA_SCRN Cumulative / Targets
@@ -258,15 +274,18 @@ collapse_pos_tx_tbl  <- function(df_other, ...) {
 
 # ANALYTICS --------------------------------------------------------------------------
 
+####### OVERALL #####################################################################
+# table(scrn_txcurr_df$indicator, scrn_txcurr_df$cumulative)
+
 #leaves out age and country for trends
 scrn_txcurr_df_fy <- scrn_txcurr_df %>%
+  dplyr::filter(fiscal_year>=2018)%>% 
   group_by(operatingunit, country, indicator, fiscal_year) %>%
   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
   select( indicator:cumulative) %>% 
-  select(indicator, fiscal_year,cumulative) %>% 
-  filter(fiscal_year!=2024)
+  select(indicator, fiscal_year,cumulative)
 
-# view(scrn_txcurr_df_fy)
+ view(scrn_txcurr_df_fy)
 
 #pivot wider to create calculation
 scrn_txcurr_df_fy_wide <- scrn_txcurr_df_fy %>% 
@@ -276,7 +295,7 @@ scrn_txcurr_df_fy_wide <- scrn_txcurr_df_fy %>%
   dplyr::mutate(scrn_ach_curr=CXCA_SCRN/TX_CURR) 
 
 
-# view(scrn_txcurr_df_fy_wide) 
+ view(scrn_txcurr_df_fy_wide) 
 
 # Run the regression for fiscal year
 lm_model <- lm(scrn_ach_curr ~ fiscal_year, data = scrn_txcurr_df_fy_wide)
@@ -298,21 +317,24 @@ summary(lm_model)
 # Multiple R-squared:  0.09561,	Adjusted R-squared:  -0.8088 
 # F-statistic: 0.1057 on 1 and 1 DF,  p-value: 0.7999
 
+
 ################################################################################
 ################################### COUNTRY
-#leaves out age and fiscal year, for trends by age group
+
+# compare percentages for different countries at a single point in time
+
 scrn_txcurr_df_ou <- scrn_txcurr_df %>%
     filter(fiscal_year!=2024) %>% 
-  group_by(operatingunit, country, indicator) %>%
+  group_by(operatingunit, country,fiscal_year, indicator) %>%
   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
   select( country:cumulative) %>% 
-  select(indicator, country, cumulative)  
+  select(indicator, country, fiscal_year,cumulative)  
 
 view(scrn_txcurr_df_ou)
 
 #pivot wider to create calculation
 scrn_txcurr_df_ou_wide <- scrn_txcurr_df_ou %>% 
-  group_by(country, indicator) %>% 
+  group_by(country, indicator, fiscal_year) %>% 
   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
   pivot_wider(values_from = cumulative, names_from = indicator) %>% 
   dplyr::mutate(scrn_ach_curr=CXCA_SCRN/TX_CURR) 
@@ -320,9 +342,19 @@ scrn_txcurr_df_ou_wide <- scrn_txcurr_df_ou %>%
 
  view(scrn_txcurr_df_ou_wide) 
 
-# Run the regression for fiscal year
-lm_model <- lm(scrn_ach_curr ~ country, data = scrn_txcurr_df_ou_wide)
-summary(lm_model)
+ 
+ # # Perform ANOVA
+ result_anova <-   aov(scrn_ach_curr~country , scrn_txcurr_df_ou_wide)
+ summary(result_anova)
+ 
+ # 
+ # # Perform Kruskal-Wallis test (non-parametric)
+ # result_kw <- kruskal.test(list(country_A, country_B, country_C))
+ # print(result_kw$p.value)
+ 
+ result_kw <- kruskal.test(scrn_ach_curr ~ country, scrn_txcurr_df_ou_wide)
+ print(result_kw)
+ 
 
   
 # Call:
