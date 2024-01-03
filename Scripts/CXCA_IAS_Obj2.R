@@ -11,7 +11,7 @@
 
 # • Cervical Cancer % Positive
 # % CXCA_SCRN_POS results / CXCA_SCRN results
-names(df_other)
+ names(df_other)
 # collapse_scrn_pos_tbl  <- function(df_other, ...) {
   
   scrn_pos_indics <- c("CXCA_SCRN", "CXCA_SCRN_POS")
@@ -21,8 +21,8 @@ names(df_other)
     dplyr::filter(indicator %in% scrn_pos_indics,
                   standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType")
                   )  %>% 
-    dplyr::group_by(across()) %>% 
-    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::group_by(across(where(~!is.double(.)))) %>% 
+    dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") %>%
     dplyr::ungroup() 
   
    view(scrn_pos_df)
@@ -117,7 +117,7 @@ df_long<- scrn_pos_df %>%
   
   scrn_pos_df_global <- df_long %>%
     group_by(indicator, fiscal_year, qtr) %>%
-    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+    dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
   
   view(scrn_pos_df_global)
   
@@ -138,7 +138,7 @@ df_long<- scrn_pos_df %>%
   
   scrn_pos_df_ou <- df_long %>%
     group_by(country, indicator, fiscal_year, qtr) %>%
-    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+    dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
   
   view(scrn_pos_df_ou)
   
@@ -156,7 +156,7 @@ df_long<- scrn_pos_df %>%
 
   scrn_pos_df_age <- df_long %>%
     group_by(ageasentered, indicator, fiscal_year, qtr) %>%
-    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+    dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
   
   view(scrn_pos_df_age)
   

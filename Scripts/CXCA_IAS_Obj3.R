@@ -19,8 +19,8 @@
                   # standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType",
                   #                                  "Age/Sex/HIVStatus/TreatmentType/ScreenVisitType") |
                   #   cxca_tx %in% c("Thermocoagulation", "Cryotherapy", "LEEP")) %>% 
-    dplyr::group_by(across()) %>% 
-    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::group_by(across(where(~!is.double(.)))) %>% 
+    dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") %>%
     dplyr::ungroup() 
   
   view(pos_tx_df)
@@ -53,7 +53,7 @@
     select(-fiscal_year) %>% 
     dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
   
-  view(pos_tx_df_global)
+  # view(pos_tx_df_global)
   
   #pivot wider to create calculation
   pos_tx_df_global_wide <- pos_tx_df_global %>% 
@@ -73,7 +73,7 @@
     select(-fiscal_year) %>% 
     dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
   
-  view(pos_tx_df_ou)
+  # view(pos_tx_df_ou)
   
   #pivot wider to create calculation
   pos_tx_df_ou_wide <- pos_tx_df_ou %>% 
@@ -92,7 +92,7 @@
     select(-fiscal_year) %>% 
     dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
   
-  view(pos_tx_df_age)
+  # view(pos_tx_df_age)
   
   #pivot wider to create calculation
   pos_tx_df_age_wide <- pos_tx_df_age %>% 
@@ -107,9 +107,9 @@
   
   pos_tx_df_global <- df_long %>%
     group_by(indicator, fiscal_year, qtr) %>%
-    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+    dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
   
-  view(pos_tx_df_global)
+  # view(pos_tx_df_global)
   
   #pivot wider to create calculation
   pos_tx_df_global_wide <- pos_tx_df_global %>% 
@@ -126,9 +126,9 @@
   
   pos_tx_df_ou <- df_long %>%
     group_by(country, indicator, fiscal_year, qtr) %>%
-    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+    dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
   
-  view(pos_tx_df_ou)
+  # view(pos_tx_df_ou)
   
   #pivot wider to create calculation
   pos_tx_df_ou_wide <- pos_tx_df_ou %>% 
@@ -144,9 +144,9 @@
   
   pos_tx_df_age <- df_long %>%
     group_by(ageasentered, indicator, fiscal_year, qtr) %>%
-    dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+    dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
   
-  view(pos_tx_df_age)
+  # view(pos_tx_df_age)
   
   #pivot wider to create calculation
   pos_tx_df_age_wide <- pos_tx_df_age %>% 

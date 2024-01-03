@@ -19,11 +19,11 @@ tx_type_df <-  df_clean %>%
   # standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType",
   #                                  "Age/Sex/HIVStatus/TreatmentType/ScreenVisitType") |
   #   cxca_tx %in% c("Thermocoagulation", "Cryotherapy", "LEEP")) %>% 
-  dplyr::group_by(across()) %>% 
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
+  dplyr::group_by(across(where(~!is.double(.)))) %>% 
+  dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") %>%
   dplyr::ungroup() 
 
-view(tx_type_df)
+# view(tx_type_df)
 
 #   return(tx_type_df)
 # }
@@ -41,7 +41,7 @@ df_long<- tx_type_df %>%
   select( -cumulative)
 
 
-view(df_long)
+# view(df_long)
 
 
 # ANALYTICS --------------------------------------------------------------------------
@@ -51,9 +51,9 @@ view(df_long)
 tx_type_df_global <- df_long %>%
   group_by(indicator, cxca_tx) %>%
   select(-fiscal_year) %>% 
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+  dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
 
-view(tx_type_df_global)
+ view(tx_type_df_global)
 
 
 ################################################################################
@@ -84,7 +84,7 @@ view(tx_type_df_age)
 
 pos_tx_df_global <- df_long %>%
   group_by(indicator, fiscal_year, qtr,cxca_tx) %>%
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+  dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
 
 view(pos_tx_df_global)
 
@@ -97,7 +97,7 @@ view(pos_tx_df_global)
 
 pos_tx_df_ou <- df_long %>%
   group_by(country, indicator, fiscal_year, qtr,cxca_tx) %>%
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+  dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
 
 view(pos_tx_df_ou)
 
@@ -108,7 +108,7 @@ view(pos_tx_df_ou)
 
 pos_tx_df_age <- df_long %>%
   group_by(ageasentered, indicator, fiscal_year, qtr,cxca_tx) %>%
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+  dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") 
 
 view(pos_tx_df_age)
 
