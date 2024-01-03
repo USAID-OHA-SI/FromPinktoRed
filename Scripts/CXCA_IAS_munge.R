@@ -70,13 +70,15 @@ df_filter <- df_bind %>%
     (indicator == "TX_CURR" & 
        standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus") &
            ageasentered %in% c("15-19", "20-24", "25-29", "30-34","35-39", "40-44", 
-              "45-49","50+", "50-54", "55-59","60-64","65+","15+")&
+              "45-49","50+", "50-54", "55-59","60-64","65+","15+",
+              "25-49", "40-49", "Unknown Age")&
            sex=="Female") | 
     (str_detect(indicator, "CXCA") & 
         str_detect(standardizeddisaggregate, "Age/Sex/HIVStatus/") &
        #consider changing above to otherdisaggregate!=null 
        ageasentered %in% c("15-19", "20-24", "25-29", "30-34","35-39", "40-44", 
-                           "45-49","50+", "50-54", "55-59","60-64","65+","15+")))%>% 
+                           "45-49","50+", 
+                           "Unknown Age")))%>%
   #filtering necessary variables for ou / global analysis
   select(country, indicator, standardizeddisaggregate,
          otherdisaggregate, ageasentered, fiscal_year, qtr2, qtr4, cumulative)

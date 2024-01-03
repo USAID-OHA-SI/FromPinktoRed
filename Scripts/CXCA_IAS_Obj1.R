@@ -18,12 +18,9 @@ scrn_txcurr_indics <- c("CXCA_SCRN", "TX_CURR")
 
 scrn_txcurr_df <-  df_clean %>% 
   dplyr::filter(indicator %in% scrn_txcurr_indics) %>% 
-  #               standardizeddisaggregate %in%  c("Age/Sex/HIVStatus/ScreenResult/ScreenVisitType",
-  #                                                "Age/Sex/HIVStatus", "Age Aggregated/Sex/HIVStatus")) %>% 
   dplyr::select(country, indicator, fiscal_year,ageasentered, cumulative) %>% 
-  dplyr::group_by(across()) %>% 
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>%
-  dplyr::ungroup() 
+  dplyr::group_by(country, indicator, fiscal_year,ageasentered) %>% 
+  dplyr::summarise(cumulative= sum(cumulative, na.rm = TRUE))
 
 #   return(scrn_txcurr_df)
 # }
