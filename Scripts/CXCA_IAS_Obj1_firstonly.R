@@ -67,7 +67,6 @@ scrn_txcurr_df_fy <- scrn_txcurr_df %>%
   group_by(indicator) %>%
   select(-fiscal_year) %>% 
   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
-
 # view(scrn_txcurr_df_fy)
 
 #pivot wider to create calculation
@@ -76,6 +75,10 @@ scrn_txcurr_df_fy_wide <- scrn_txcurr_df_fy %>%
   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
   pivot_wider(values_from = cumulative, names_from = indicator) %>% 
   dplyr::mutate(scrn_ach_curr=(CXCA_SCRN/TX_CURR)*100) 
+
+group_by(your_grouping_variable) %>%  # Replace with your actual grouping variable
+  slice_max(order_by = fiscal_year) %>%  # Select the row with the maximum fiscal_year
+  ungroup()
 
 view(scrn_txcurr_df_fy_wide) 
 
@@ -86,18 +89,24 @@ view(scrn_txcurr_df_fy_wide)
 # compare percentages for different countries at a single point in time
 
 scrn_txcurr_df_ou <- scrn_txcurr_df %>%
-  group_by(country, indicator) %>%
-  select(-fiscal_year) %>% 
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
-
-# view(scrn_txcurr_df_ou)
-
-#pivot wider to create calculation
-scrn_txcurr_df_ou_wide <- scrn_txcurr_df_ou %>% 
-  group_by(country, indicator) %>% 
+  group_by(fiscal_year,country, indicator) %>%
   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
   pivot_wider(values_from = cumulative, names_from = indicator) %>% 
-  dplyr::mutate(scrn_ach_curr=(CXCA_SCRN/TX_CURR)*100) 
+  mutate(CXCA_SCRN=replace_na(CXCA_SCRN, 0)) %>% 
+  arrange(fiscal_year) %>% 
+  group_by(country) %>%
+  mutate(
+    CXCA_SCRN_cum = cumsum(CXCA_SCRN),
+    TX_CURR_last = last(TX_CURR)
+  ) 
+
+ view(scrn_txcurr_df_ou)
+
+#create calculation
+scrn_txcurr_df_ou_wide <- scrn_txcurr_df_ou %>% 
+  dplyr::filter(fiscal_year==2023) %>% 
+  dplyr::mutate(scrn_ach_curr=(CXCA_SCRN/TX_CURR)*100) %>% 
+  dplyr::mutate(scrn_ach_curr_cum=(CXCA_SCRN_cum/TX_CURR_last)*100) 
 
 view(scrn_txcurr_df_ou_wide) 
 
@@ -106,18 +115,18 @@ view(scrn_txcurr_df_ou_wide)
 ################################### AGE
 
 #### by ages
-scrn_txcurr_viz_age <- scrn_txcurr_df %>%
-  select(-fiscal_year) %>% 
-  group_by(indicator, ageasentered) %>%
-  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
-
-# view(scrn_txcurr_viz_age)
-
-scrn_txcurr_viz_wide_age <- scrn_txcurr_viz_age %>% 
-  pivot_wider(values_from = cumulative, names_from = indicator) %>% 
-  dplyr::mutate(scrn_ach_curr=(CXCA_SCRN/TX_CURR)*100) 
-
-view(scrn_txcurr_viz_wide_age) 
+# scrn_txcurr_viz_age <- scrn_txcurr_df %>%
+#   select(-fiscal_year) %>% 
+#   group_by(indicator, ageasentered) %>%
+#   dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
+# 
+# # view(scrn_txcurr_viz_age)
+# 
+# scrn_txcurr_viz_wide_age <- scrn_txcurr_viz_age %>% 
+#   pivot_wider(values_from = cumulative, names_from = indicator) %>% 
+#   dplyr::mutate(scrn_ach_curr=(CXCA_SCRN/TX_CURR)*100) 
+# 
+# view(scrn_txcurr_viz_wide_age) 
 
 
 # scrn_txcurr_viz_wide <- scrn_txcurr_viz %>% 
@@ -128,7 +137,27 @@ view(scrn_txcurr_viz_wide_age)
 # 
 # view(scrn_txcurr_viz_wide) 
 
+scrn_txcurr_viz_age <- scrn_txcurr_df %>%
+  group_by(fiscal_year,ageasentered, indicator) %>%
+  dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
+  pivot_wider(values_from = cumulative, names_from = indicator) %>% 
+  mutate(CXCA_SCRN=replace_na(CXCA_SCRN, 0)) %>% 
+  arrange(fiscal_year) %>% 
+  group_by(ageasentered) %>%
+  mutate(
+    CXCA_SCRN_cum = cumsum(CXCA_SCRN),
+    TX_CURR_last = last(TX_CURR)
+  ) 
 
+view(scrn_txcurr_viz_age)
+
+#create calculation
+scrn_txcurr_viz_wide_age <- scrn_txcurr_viz_age %>% 
+  dplyr::filter(fiscal_year==2023) %>% 
+  dplyr::mutate(scrn_ach_curr=(CXCA_SCRN/TX_CURR)*100) %>% 
+  dplyr::mutate(scrn_ach_curr_cum=(CXCA_SCRN_cum/TX_CURR_last)*100) 
+
+view(scrn_txcurr_viz_wide_age) 
 
 
 
@@ -146,7 +175,12 @@ scrn_txcurr_df_fy_wide <- scrn_txcurr_df_fy %>%
   group_by(indicator, fiscal_year) %>% 
   dplyr::summarise(dplyr::across(where(is.double), sum, na.rm = TRUE), .groups = "drop") %>% 
   pivot_wider(values_from = cumulative, names_from = indicator) %>% 
-  dplyr::mutate(scrn_ach_curr=(CXCA_SCRN/TX_CURR)*100) 
+  arrange(fiscal_year) %>%
+  # group_by(indicator) %>%  # Replace with your actual grouping variable
+  mutate(CXCA_SCRN_cum = cumsum(CXCA_SCRN))  %>% 
+  dplyr::mutate(scrn_ach_curr=(CXCA_SCRN/TX_CURR)*100) %>% 
+  dplyr::mutate(scrn_ach_curr_cum=(CXCA_SCRN_cum/TX_CURR)*100) 
+
 
 
 view(scrn_txcurr_df_fy_wide) 
