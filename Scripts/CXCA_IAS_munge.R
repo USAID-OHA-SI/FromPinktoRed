@@ -77,7 +77,7 @@ df_filter <- df_bind %>%
         str_detect(standardizeddisaggregate, "Age/Sex/HIVStatus/") &
        #consider changing above to otherdisaggregate!=null 
        ageasentered %in% c("15-19", "20-24", "25-29", "30-34","35-39", "40-44", 
-                           "45-49","50+", 
+                           "45-49","50+", "50-54", "55-59","60-64","65+", 
                            "Unknown Age")))%>%
   #filtering necessary variables for ou / global analysis
   select(country, indicator, standardizeddisaggregate,
