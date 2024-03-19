@@ -7,6 +7,7 @@
 # UPDATED:  202-12-21
 
 
+
 # • Cervical Cancer % Positive on Treatment
 # % CXCA_TX results / CXCA_SCRN_POS results
 
@@ -53,7 +54,7 @@
     select(-fiscal_year) %>% 
     dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
   
-  # view(pos_tx_df_global)
+   view(pos_tx_df_global)
   
   #pivot wider to create calculation
   pos_tx_df_global_wide <- pos_tx_df_global %>% 
@@ -65,7 +66,7 @@
   
   ################################################################################
   ################################### COUNTRY
-  
+
   # compare percentages for different countries at a single point in time
   
   pos_tx_df_ou <- df_long %>%
@@ -74,16 +75,16 @@
     dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") 
   
   # view(pos_tx_df_ou)
-  
+
   #pivot wider to create calculation
   pos_tx_df_ou_wide <- pos_tx_df_ou %>% 
-    group_by(country, indicator) %>% 
+    group_by(country, indicator)  %>% 
     dplyr::summarise(dplyr::across(where(is.numeric), sum, na.rm = TRUE), .groups = "drop") %>% 
     pivot_wider(values_from = results, names_from = indicator) %>% 
-    dplyr::mutate(pos_tx_perc=(CXCA_TX/CXCA_SCRN_POS)*100) 
+    dplyr::mutate(pos_tx_perc=(CXCA_TX/CXCA_SCRN_POS)*100)
   
-  view(pos_tx_df_ou_wide) 
-  
+  # view(pos_tx_df_ou_wide) 
+ 
   ################################################################################
   ################################### AGE
   
@@ -156,3 +157,4 @@
   view(pos_tx_df_age_wide) 
   
 
+  
